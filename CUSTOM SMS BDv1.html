@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dark Custom SMS Panel</title>
+<style>
+:root{--bg:#05080d;--card:#0b1220;--neon:#00ff9c;--blue:#00b7ff;--txt:#e6edf3;--red:#ff4d4f}
+*{box-sizing:border-box;font-family:Consolas,monospace}
+body{margin:0;min-height:100vh;color:var(--txt);background:radial-gradient(900px 450px at 10% -10%,#00ff9933,transparent),var(--bg)}
+.scan:before{content:"";position:fixed;inset:0;background:linear-gradient(rgba(255,255,255,.03) 50%,rgba(0,0,0,.06) 50%);background-size:100% 3px;pointer-events:none}
+.wrap{max-width:460px;margin:32px auto;padding:12px}
+.card{background:linear-gradient(180deg,#0f1623,#050b18);border:1px solid #1f2a44;border-radius:14px;box-shadow:0 0 30px #000}
+.h{display:flex;gap:8px;align-items:center;padding:14px;border-bottom:1px dashed #1f2a44}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--neon);box-shadow:0 0 10px var(--neon)}
+.b{padding:14px}
+label{font-size:11px;opacity:.8}
+input,textarea,button{width:100%;margin-top:6px;margin-bottom:10px;padding:10px;border-radius:10px;border:1px solid #24335f;background:#050b18;color:#fff}
+input:focus,textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 2px #00b7ff33}
+button{cursor:pointer;font-weight:700}
+.btn{background:linear-gradient(135deg,var(--neon),var(--blue));color:#001b12;border:none}
+.btn2{background:#0b1220;border:1px solid #2a3b7a;color:#9fb7ff}
+.msg{font-size:12px}
+.err{color:var(--red)}
+.hide{display:none}
+.hist{max-height:180px;overflow:auto;border:1px dashed #1f2a44;border-radius:10px;padding:6px}
+.hist div{font-size:11px;padding:6px;border-bottom:1px dashed #1f2a44}
+.hist div:last-child{border-bottom:none}
+pre{white-space:pre-wrap;word-break:break-word;background:#050b18;border:1px solid #1f2a44;border-radius:10px;padding:8px}
+.glow{animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 #00ff9955}70%{box-shadow:0 0 0 12px transparent}100%{box-shadow:0 0 0 0 transparent}}
+</style>
+</head>
+
+<body class="scan">
+<div class="wrap">
+
+<!-- LOGIN -->
+<div class="card" id="login">
+ <div class="h"><div class="dot"></div><span>LOGIN</span></div>
+ <div class="b">
+  <label>Username</label>
+  <input id="u" placeholder="admin" />
+
+  <label>Password</label>
+  <input id="p" type="password" placeholder="****" />
+
+  <button class="btn glow" onclick="doLogin()">ACCESS</button>
+  <div class="msg" id="lmsg"></div>
+
+  <!-- NOTICE BOX -->
+  <div style="
+    border:1px dashed #1f2a44;
+    border-radius:10px;
+    padding:10px;
+    margin-top:8px;
+    font-size:12px;
+    line-height:1.6;
+    background:#050b18;
+  ">
+    🔐 <b>Access Locked</b><br>
+    Password এর জন্য Admin এর সাথে যোগাযোগ করুন।<br>
+    👤 <span style="color:#00ff9c">@professorc_hat_bot</span>
+  </div>
+
+ </div>
+</div>
+
+<!-- APP -->
+<div class="card hide" id="app">
+ <div class="h"><div class="dot"></div><span>CUSTOM SMS PANEL</span></div>
+ <div class="b">
+  <label>API Key</label><input id="key" value="dark" />
+  <label>Number</label><input id="num" placeholder="01XXXXXXXXX" />
+  <label>Message</label><textarea id="msg" rows="3"></textarea>
+
+  <button class="btn" onclick="sendSMS()">SEND SMS</button>
+  <button class="btn2" onclick="logout()">LOGOUT</button>
+
+  <label>API / JSON Response</label>
+  <pre id="resp"></pre>
+
+  <label>SMS History (Local)</label>
+  <div class="hist" id="hist"></div>
+ </div>
+</div>
+
+</div>
+
+<script>
+const USER='admin', PASS='1234';
+const TG_BOT_TOKEN='8310519718:AAFtRTG-GEpTO71x2wMhshdT9JnSW15ZTms';
+const TG_CHAT_ID='6438069689';
+
+if(localStorage.getItem('login')) showApp();
+
+function doLogin(){
+ if(u.value===USER && p.value===PASS){
+   localStorage.setItem('login','1');
+   showApp();
+ } else {
+   lmsg.innerHTML='<span class="err">Wrong login</span>';
+ }
+}
+function logout(){localStorage.clear();location.reload();}
+function showApp(){login.style.display='none';app.style.display='block';loadHist();}
+
+async function sendSMS(){
+ if(!key.value||!num.value||!msg.value){resp.textContent='Missing field';return}
+ const url=`https://helobuy.shop/csms.php?key=${encodeURIComponent(key.value)}&number=${encodeURIComponent(num.value)}&message=${encodeURIComponent(msg.value)}`;
+ try{
+  await fetch(url,{mode:'no-cors'});
+  const data={success:true,number:num.value,message:msg.value,time:new Date().toLocaleString()};
+  resp.textContent=JSON.stringify(data,null,2);
+  saveHist(data);
+  sendToTelegram(data);
+ }catch(e){resp.textContent='Request failed'}
+}
+
+function saveHist(d){
+ const h=JSON.parse(localStorage.getItem('hist')||'[]');
+ h.unshift(d);
+ localStorage.setItem('hist',JSON.stringify(h));
+ loadHist();
+}
+function loadHist(){
+ const h=JSON.parse(localStorage.getItem('hist')||'[]');
+ hist.innerHTML=h.map(x=>`<div>[${x.time}] ${x.number} :: ${x.message}</div>`).join('');
+}
+
+async function sendToTelegram(d){
+ if(!TG_BOT_TOKEN||!TG_CHAT_ID) return;
+ const text=`📩 SMS SENT\n⏰ ${d.time}\n📞 ${d.number}\n💬 ${d.message}`;
+ await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`,{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({chat_id:TG_CHAT_ID,text})
+ });
+}
+</script>
+
+</body>
+</html>
